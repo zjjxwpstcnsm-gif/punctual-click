@@ -1,0 +1,94 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: Build macOS ARM64 DMG
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build macOS release
+        env:
+          PUNCTUAL_VERSION: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PUNCTUAL_VERSION="${PUNCTUAL_VERSION#v}"
+          ./packaging/macos/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: punctual-macos-arm64
+          path: |
+            dist/Punctual-*-macos-arm64.dmg
+            dist/Punctual-*-macos-arm64.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0
+
+  windows:
+    name: Build Windows x64 packages
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build Windows release
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          ./packaging/windows/build-release.ps1 -Version $version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: punctual-windows-x64
+          path: |
+            dist/Punctual-*-windows-x64-setup.exe
+            dist/Punctual-*-windows-x64-portable.zip
+            dist/Punctual-*-windows-x64-SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub Release
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Verify assets and create combined checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          find release-assets -maxdepth 1 -type f -print
+          test -n "$(find release-assets -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*-setup.exe' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*-portable.zip' -print -quit)"
+          (cd release-assets && sha256sum *.dmg *-setup.exe *-portable.zip > SHA256SUMS.txt)
+      - name: Publish prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Punctual ${{ github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          files: |
+            release-assets/*.dmg
+            release-assets/*.dmg.sha256
+            release-assets/*-setup.exe
+            release-assets/*-portable.zip
+            release-assets/*-SHA256SUMS.txt
+            release-assets/SHA256SUMS.txt
+          fail_on_unmatched_files: true
