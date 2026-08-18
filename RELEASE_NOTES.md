@@ -17,6 +17,7 @@ Punctual is a local-first scheduled click assistant built with Rust and GPUI.
 ## Downloads
 
 - `Punctual-0.1.0-alpha.5-macos-arm64.dmg` — Apple Silicon macOS package.
+- `Punctual-0.1.0-alpha.5-macos-x64.dmg` — Intel macOS package.
 - `Punctual-0.1.0-alpha.5-windows-x64-setup.exe` — per-user Windows installer.
 - `Punctual-0.1.0-alpha.5-windows-x64-portable.zip` — portable Windows package.
 - `SHA256SUMS.txt` — combined integrity checks.

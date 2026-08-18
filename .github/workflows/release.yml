@@ -11,8 +11,16 @@ permissions:
 
 jobs:
   macos:
-    name: Build macOS ARM64 DMG
-    runs-on: macos-15
+    name: Build macOS ${{ matrix.arch }} DMG
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -29,10 +37,10 @@ jobs:
           ./packaging/macos/build-release.sh
       - uses: actions/upload-artifact@v4
         with:
-          name: punctual-macos-arm64
+          name: punctual-macos-${{ matrix.arch }}
           path: |
-            dist/Punctual-*-macos-arm64.dmg
-            dist/Punctual-*-macos-arm64.dmg.sha256
+            dist/Punctual-*-macos-${{ matrix.arch }}.dmg
+            dist/Punctual-*-macos-${{ matrix.arch }}.dmg.sha256
           if-no-files-found: error
           compression-level: 0
 
@@ -76,7 +84,8 @@ jobs:
         run: |
           set -euo pipefail
           find release-assets -maxdepth 1 -type f -print
-          test -n "$(find release-assets -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*-macos-arm64.dmg' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*-macos-x64.dmg' -print -quit)"
           test -n "$(find release-assets -maxdepth 1 -name '*-setup.exe' -print -quit)"
           test -n "$(find release-assets -maxdepth 1 -name '*-portable.zip' -print -quit)"
           (cd release-assets && sha256sum *.dmg *-setup.exe *-portable.zip > SHA256SUMS.txt)

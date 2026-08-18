@@ -1,0 +1,134 @@
+name: Backfill macOS Intel Release Asset
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".release/backfill-v0.1.0-alpha.5-macos-x64"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: backfill-punctual-v0.1.0-alpha.5-macos-x64
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    name: Build and publish macOS x64 DMG
+    runs-on: macos-15-intel
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v0.1.0-alpha.5
+      VERSION: 0.1.0-alpha.5
+      DMG_NAME: Punctual-0.1.0-alpha.5-macos-x64.dmg
+    steps:
+      - name: Check out current packaging tooling
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: tooling
+
+      - name: Check out the released source
+        uses: actions/checkout@v4
+        with:
+          ref: v0.1.0-alpha.5
+          path: source
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: source -> target
+          key: macos-x64-v0.1.0-alpha.5
+
+      - name: Build Intel package from the released source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "x86_64"
+          cd "${GITHUB_WORKSPACE}/source"
+          cargo generate-lockfile
+          PUNCTUAL_ROOT="${GITHUB_WORKSPACE}/source" \
+          PUNCTUAL_DIST_DIR="${GITHUB_WORKSPACE}/dist" \
+          PUNCTUAL_VERSION="${VERSION}" \
+            "${GITHUB_WORKSPACE}/tooling/packaging/macos/build-release.sh"
+
+      - name: Verify DMG contents and architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg="${GITHUB_WORKSPACE}/dist/${DMG_NAME}"
+          test -s "${dmg}"
+          (cd "${GITHUB_WORKSPACE}/dist" && shasum -a 256 -c "${DMG_NAME}.sha256")
+
+          mount_dir="$(mktemp -d)"
+          hdiutil attach -readonly -nobrowse -mountpoint "${mount_dir}" "${dmg}"
+          trap 'hdiutil detach "${mount_dir}" >/dev/null 2>&1 || true' EXIT
+
+          app="${mount_dir}/Punctual.app"
+          test "$(lipo -archs "${app}/Contents/MacOS/Punctual")" = "x86_64"
+          test "$(lipo -archs "${app}/Contents/Resources/managed-browser/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing")" = "x86_64"
+          [[ "$(lipo -archs "${app}/Contents/Resources/bin/geckodriver")" == *"x86_64"* ]]
+          codesign --verify --deep --strict --verbose=2 "${app}"
+
+      - name: Rebuild combined release checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${GITHUB_WORKSPACE}/release-assets"
+          gh release download "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --pattern "Punctual-${VERSION}-macos-arm64.dmg" \
+            --pattern "Punctual-${VERSION}-windows-x64-setup.exe" \
+            --pattern "Punctual-${VERSION}-windows-x64-portable.zip" \
+            --dir "${GITHUB_WORKSPACE}/release-assets"
+          cp "${GITHUB_WORKSPACE}/dist/${DMG_NAME}" "${GITHUB_WORKSPACE}/release-assets/${DMG_NAME}"
+          cd "${GITHUB_WORKSPACE}/release-assets"
+          shasum -a 256 \
+            "Punctual-${VERSION}-macos-arm64.dmg" \
+            "${DMG_NAME}" \
+            "Punctual-${VERSION}-windows-x64-setup.exe" \
+            "Punctual-${VERSION}-windows-x64-portable.zip" \
+            > SHA256SUMS.txt
+
+      - name: Upload Intel package to the existing Release
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "${TAG}" \
+            "${GITHUB_WORKSPACE}/dist/${DMG_NAME}" \
+            "${GITHUB_WORKSPACE}/dist/${DMG_NAME}.sha256" \
+            "${GITHUB_WORKSPACE}/release-assets/SHA256SUMS.txt" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --clobber
+          gh release edit "${TAG}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --notes-file "${GITHUB_WORKSPACE}/tooling/RELEASE_NOTES.md"
+
+      - name: Verify published Release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}")"
+          for asset in "${DMG_NAME}" "${DMG_NAME}.sha256" "SHA256SUMS.txt"; do
+            echo "${release_json}" | jq -e --arg asset "${asset}" \
+              '.assets | any(.name == $asset and .state == "uploaded" and .size > 0)' >/dev/null
+          done
+
+          expected="sha256:$(shasum -a 256 "${GITHUB_WORKSPACE}/dist/${DMG_NAME}" | awk '{print $1}')"
+          reported="$(echo "${release_json}" | jq -r --arg asset "${DMG_NAME}" '.assets[] | select(.name == $asset) | .digest // empty')"
+          if [[ -n "${reported}" ]]; then
+            test "${reported}" = "${expected}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: punctual-macos-x64-v0.1.0-alpha.5
+          path: |
+            dist/Punctual-0.1.0-alpha.5-macos-x64.dmg
+            dist/Punctual-0.1.0-alpha.5-macos-x64.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0

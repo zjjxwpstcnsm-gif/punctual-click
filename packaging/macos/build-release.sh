@@ -1,12 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT="${PUNCTUAL_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 VERSION="${PUNCTUAL_VERSION:-0.1.0-alpha.5}"
 DIST="${PUNCTUAL_DIST_DIR:-${ROOT}/dist}"
-RUNTIME="${DIST}/runtime-macos"
+HOST_ARCH="$(uname -m)"
+
+case "${HOST_ARCH}" in
+  arm64)
+    PACKAGE_ARCH="arm64"
+    MACHO_ARCH="arm64"
+    CHROME_PLATFORM="mac-arm64"
+    GECKO_PLATFORM="macos-aarch64"
+    ;;
+  x86_64)
+    PACKAGE_ARCH="x64"
+    MACHO_ARCH="x86_64"
+    CHROME_PLATFORM="mac-x64"
+    GECKO_PLATFORM="macos"
+    ;;
+  *)
+    echo "Unsupported macOS architecture: ${HOST_ARCH}" >&2
+    exit 1
+    ;;
+esac
+
+RUNTIME="${DIST}/runtime-macos-${PACKAGE_ARCH}"
 APP="${DIST}/Punctual.app"
-DMG="${DIST}/Punctual-${VERSION}-macos-arm64.dmg"
+DMG_ROOT="${DIST}/dmg-root-${PACKAGE_ARCH}"
+DMG="${DIST}/Punctual-${VERSION}-macos-${PACKAGE_ARCH}.dmg"
 SIGN_IDENTITY="${PUNCTUAL_CODESIGN_IDENTITY:--}"
 
 require() {
@@ -22,28 +44,28 @@ require codesign
 require lipo
 
 [[ "$(uname -s)" == "Darwin" ]] || { echo "This script must run on macOS" >&2; exit 1; }
-[[ "$(uname -m)" == "arm64" ]] || { echo "This release script currently targets Apple Silicon ARM64" >&2; exit 1; }
 
-rm -rf "${RUNTIME}" "${APP}" "${DIST}/dmg-root" "${DMG}" "${DMG}.sha256"
+rm -rf "${RUNTIME}" "${APP}" "${DMG_ROOT}" "${DMG}" "${DMG}.sha256"
 mkdir -p "${RUNTIME}/managed-browser" "${RUNTIME}/bin" "${DIST}"
 
 cd "${ROOT}"
 cargo build --release --locked -p punctual-app
 [[ -x target/release/punctual-app ]]
-[[ "$(lipo -archs target/release/punctual-app)" == "arm64" ]]
+[[ "$(lipo -archs target/release/punctual-app)" == "${MACHO_ARCH}" ]]
 
 curl --fail --location --retry 3 \
   https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json \
   -o "${RUNTIME}/chrome-for-testing.json"
 
-python3 - "${RUNTIME}" <<'PY'
+python3 - "${RUNTIME}" "${CHROME_PLATFORM}" <<'PY'
 import json
 import sys
 from pathlib import Path
 runtime = Path(sys.argv[1])
+platform = sys.argv[2]
 data = json.loads((runtime / "chrome-for-testing.json").read_text())
 stable = data["channels"]["Stable"]
-asset = next(item for item in stable["downloads"]["chrome"] if item["platform"] == "mac-arm64")
+asset = next(item for item in stable["downloads"]["chrome"] if item["platform"] == platform)
 (runtime / "chrome-url.txt").write_text(asset["url"])
 (runtime / "chrome-version.txt").write_text(stable["version"])
 PY
@@ -55,7 +77,7 @@ CHROME_APP="$(find "${RUNTIME}/chrome-extracted" -type d -name 'Google Chrome fo
 ditto "${CHROME_APP}" "${RUNTIME}/managed-browser/Google Chrome for Testing.app"
 
 GECKO_VERSION="${PUNCTUAL_GECKODRIVER_VERSION:-0.37.1}"
-GECKO_ARCHIVE="geckodriver-v${GECKO_VERSION}-macos-aarch64.tar.gz"
+GECKO_ARCHIVE="geckodriver-v${GECKO_VERSION}-${GECKO_PLATFORM}.tar.gz"
 curl --fail --location --retry 3 \
   "https://github.com/mozilla/geckodriver/releases/download/v${GECKO_VERSION}/${GECKO_ARCHIVE}" \
   -o "${RUNTIME}/${GECKO_ARCHIVE}"
@@ -84,8 +106,8 @@ chmod 755 "${RUNTIME}/bin/geckodriver"
 
 CHROME_BIN="${RUNTIME}/managed-browser/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
 [[ -x "${CHROME_BIN}" ]]
-[[ "$(lipo -archs "${CHROME_BIN}")" == *arm64* ]]
-[[ "$(lipo -archs "${RUNTIME}/bin/geckodriver")" == *arm64* ]]
+[[ "$(lipo -archs "${CHROME_BIN}")" == *"${MACHO_ARCH}"* ]]
+[[ "$(lipo -archs "${RUNTIME}/bin/geckodriver")" == *"${MACHO_ARCH}"* ]]
 
 CONTENTS="${APP}/Contents"
 MACOS="${CONTENTS}/MacOS"
@@ -112,7 +134,7 @@ cat > "${CONTENTS}/Info.plist" <<PLIST
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>${VERSION}</string>
 <key>CFBundleVersion</key><string>5</string>
-<key>LSArchitecturePriority</key><array><string>arm64</string></array>
+<key>LSArchitecturePriority</key><array><string>${MACHO_ARCH}</string></array>
 <key>LSMinimumSystemVersion</key><string>12.0</string>
 <key>NSHighResolutionCapable</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
@@ -126,10 +148,10 @@ codesign --force --sign "${SIGN_IDENTITY}" --timestamp=none "${RESOURCES}/bin/ge
 codesign --force --deep --sign "${SIGN_IDENTITY}" --timestamp=none "${APP}"
 codesign --verify --deep --strict --verbose=2 "${APP}"
 
-mkdir -p "${DIST}/dmg-root"
-ditto "${APP}" "${DIST}/dmg-root/Punctual.app"
-ln -s /Applications "${DIST}/dmg-root/Applications"
-hdiutil create -volname "Punctual ${VERSION}" -srcfolder "${DIST}/dmg-root" -ov -format UDZO "${DMG}"
+mkdir -p "${DMG_ROOT}"
+ditto "${APP}" "${DMG_ROOT}/Punctual.app"
+ln -s /Applications "${DMG_ROOT}/Applications"
+hdiutil create -volname "Punctual ${VERSION}" -srcfolder "${DMG_ROOT}" -ov -format UDZO "${DMG}"
 hdiutil verify "${DMG}"
-shasum -a 256 "${DMG}" | tee "${DMG}.sha256"
+(cd "${DIST}" && shasum -a 256 "$(basename "${DMG}")" | tee "$(basename "${DMG}").sha256")
 printf 'Created %s\n' "${DMG}"

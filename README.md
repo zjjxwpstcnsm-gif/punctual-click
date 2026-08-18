@@ -39,9 +39,9 @@ Safari 自动化由系统的 `safaridriver` 提供。Safari 未启用“允许�
 
 ### macOS
 
-发布页提供 Apple Silicon ARM64 DMG：
+发布页分别提供 Apple Silicon 和 Intel DMG：
 
-1. 打开 `Punctual-0.1.0-alpha.5-macos-arm64.dmg`；
+1. Apple Silicon（M1/M2/M3/M4）打开 `Punctual-0.1.0-alpha.5-macos-arm64.dmg`，Intel Mac 打开 `Punctual-0.1.0-alpha.5-macos-x64.dmg`；
 2. 将 `Punctual.app` 拖入 `Applications`；
 3. 从“应用程序”启动。
 

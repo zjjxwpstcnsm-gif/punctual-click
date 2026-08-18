@@ -4,6 +4,7 @@
 
 ### Added
 
+- Native macOS Intel (x86_64) DMG packaging alongside the Apple Silicon build.
 - Automatic browser discovery on macOS, Windows and Linux.
 - Chrome-first selection with the supported system default browser as the next priority.
 - CDP support for Chrome, Edge, Brave, Arc, Vivaldi, Chromium and Opera.
