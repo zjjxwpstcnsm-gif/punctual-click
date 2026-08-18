@@ -1,0 +1,125 @@
+name: Owner Release Command
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: punctual-owner-release-v0.1.0-alpha.5
+  cancel-in-progress: false
+
+jobs:
+  authorize:
+    name: Authorize release request
+    if: >-
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.title == '[release] Punctual v0.1.0-alpha.5'
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.allow.outputs.allowed }}
+    steps:
+      - id: allow
+        run: echo "allowed=true" >> "$GITHUB_OUTPUT"
+
+  macos:
+    name: Build macOS ARM64 DMG
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build and verify macOS package
+        env:
+          PUNCTUAL_VERSION: 0.1.0-alpha.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo generate-lockfile
+          ./packaging/macos/build-release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: owner-release-macos-arm64
+          path: |
+            dist/Punctual-0.1.0-alpha.5-macos-arm64.dmg
+            dist/Punctual-0.1.0-alpha.5-macos-arm64.dmg.sha256
+          if-no-files-found: error
+          compression-level: 0
+
+  windows:
+    name: Build Windows x64 packages
+    needs: authorize
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build and verify Windows packages
+        shell: pwsh
+        run: |
+          cargo generate-lockfile
+          if ($LASTEXITCODE -ne 0) { throw "cargo generate-lockfile failed" }
+          ./packaging/windows/build-release.ps1 -Version 0.1.0-alpha.5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: owner-release-windows-x64
+          path: |
+            dist/Punctual-0.1.0-alpha.5-windows-x64-setup.exe
+            dist/Punctual-0.1.0-alpha.5-windows-x64-portable.zip
+            dist/Punctual-0.1.0-alpha.5-windows-x64-SHA256SUMS.txt
+          if-no-files-found: error
+          compression-level: 0
+
+  publish:
+    name: Publish GitHub prerelease
+    needs: [authorize, macos, windows]
+    if: needs.authorize.outputs.allowed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Verify release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f release-assets/Punctual-0.1.0-alpha.5-macos-arm64.dmg
+          test -f release-assets/Punctual-0.1.0-alpha.5-windows-x64-setup.exe
+          test -f release-assets/Punctual-0.1.0-alpha.5-windows-x64-portable.zip
+          (cd release-assets && sha256sum \
+            Punctual-0.1.0-alpha.5-macos-arm64.dmg \
+            Punctual-0.1.0-alpha.5-windows-x64-setup.exe \
+            Punctual-0.1.0-alpha.5-windows-x64-portable.zip \
+            > SHA256SUMS.txt)
+      - name: Create release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v0.1.0-alpha.5
+          target_commitish: main
+          name: Punctual v0.1.0-alpha.5
+          prerelease: true
+          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          files: |
+            release-assets/Punctual-0.1.0-alpha.5-macos-arm64.dmg
+            release-assets/Punctual-0.1.0-alpha.5-macos-arm64.dmg.sha256
+            release-assets/Punctual-0.1.0-alpha.5-windows-x64-setup.exe
+            release-assets/Punctual-0.1.0-alpha.5-windows-x64-portable.zip
+            release-assets/Punctual-0.1.0-alpha.5-windows-x64-SHA256SUMS.txt
+            release-assets/SHA256SUMS.txt
+          fail_on_unmatched_files: true
