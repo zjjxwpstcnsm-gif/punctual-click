@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: Rust core tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo generate-lockfile
+      - run: cargo fmt --all -- --check
+      - run: cargo test -p punctual-core --locked
+      - run: cargo test -p punctual-storage --locked
+      - run: cargo test -p punctual-browser --features cdp --locked
+      - run: cargo test -p punctual-engine --locked
+      - run: node --check scripts/detect_buttons.js
+      - run: node --check scripts/highlight_button.js
+      - run: node --check scripts/probe_target.js
+
+  macos:
+    name: macOS ARM64 application check
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo generate-lockfile
+      - run: cargo check -p punctual-app --locked
+      - run: cargo test -p punctual-browser --features cdp --locked
+
+  windows:
+    name: Windows x64 application check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo generate-lockfile
+      - run: cargo check -p punctual-app --locked
+      - run: cargo test -p punctual-browser --features cdp --locked

@@ -1,0 +1,20 @@
+[package]
+name = "punctual-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+directories.workspace = true
+gpui.workspace = true
+gpui-component.workspace = true
+punctual-core = { path = "../punctual-core" }
+punctual-engine = { path = "../punctual-engine" }
+punctual-storage = { path = "../punctual-storage" }
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+uuid.workspace = true

@@ -1,0 +1,35 @@
+[package]
+name = "punctual-browser"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+cdp = [
+    "dep:anyhow",
+    "dep:chrono",
+    "dep:chromiumoxide",
+    "dep:futures",
+    "dep:reqwest",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:tokio",
+]
+
+[dependencies]
+anyhow = { workspace = true, optional = true }
+chromiumoxide = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
+punctual-core = { path = "../punctual-core" }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true }
+unicode-normalization.workspace = true
+url.workspace = true
+
+[[example]]
+name = "scan_url"
+required-features = ["cdp"]

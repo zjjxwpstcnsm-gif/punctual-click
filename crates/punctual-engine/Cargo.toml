@@ -1,0 +1,18 @@
+[package]
+name = "punctual-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+crossbeam-channel.workspace = true
+punctual-browser = { path = "../punctual-browser", features = ["cdp"] }
+punctual-core = { path = "../punctual-core" }
+punctual-storage = { path = "../punctual-storage" }
+tokio.workspace = true
+tracing.workspace = true
+url.workspace = true
+uuid.workspace = true
