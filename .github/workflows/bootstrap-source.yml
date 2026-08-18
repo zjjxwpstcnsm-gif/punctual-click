@@ -1,6 +1,7 @@
 name: Import Complete Punctual Source
 
 # One-shot repository bootstrap. The workflow deletes itself after a successful import.
+# Triggered through a merged PR so GitHub emits a normal main-branch push event.
 on:
   push:
     branches:
