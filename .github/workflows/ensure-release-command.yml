@@ -1,6 +1,10 @@
 name: Ensure Public Release
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".release/ensure-v0.1.0-alpha.5"
   issue_comment:
     types: [created]
 
@@ -11,14 +15,16 @@ permissions:
 
 concurrency:
   group: ensure-punctual-v0.1.0-alpha.5-release
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   ensure-release:
     name: Ensure visible GitHub Release
     if: >-
-      github.event.comment.user.login == github.repository_owner &&
-      github.event.comment.body == '/ensure-release v0.1.0-alpha.5'
+      github.event_name == 'push' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.comment.user.login == github.repository_owner &&
+       github.event.comment.body == '/ensure-release v0.1.0-alpha.5')
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -26,10 +32,17 @@ jobs:
       TAG: v0.1.0-alpha.5
       VERSION: 0.1.0-alpha.5
       SOURCE_RUN_ID: '32098863890'
+      REPORT_ISSUE: '6'
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
+
+      - name: Report start
+        shell: bash
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${REPORT_ISSUE}/comments" \
+            -f body="Release visibility repair started.\n\nWorkflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
 
       - name: Download verified installers from the successful build run
         uses: actions/download-artifact@v4
@@ -120,7 +133,6 @@ jobs:
         shell: bash
         env:
           RELEASE_URL: ${{ steps.release.outputs.url }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE_NUMBER}/comments" \
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${REPORT_ISSUE}/comments" \
             -f body="Punctual v${VERSION} is now a normal, visible Latest Release with verified macOS and Windows installer assets.\n\nRelease: ${RELEASE_URL}"
