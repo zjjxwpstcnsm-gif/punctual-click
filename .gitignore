@@ -1,0 +1,31 @@
+/target/
+**/target/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+.idea/
+.vscode/
+.env
+.env.*
+!.env.example
+
+# Local application data and browser profiles
+.punctual/
+.punctual-browser-profile/
+browser-profile/
+*.db
+*.db-shm
+*.db-wal
+
+# Packaging output
+dist/
+release/
+artifacts/
+*.dmg
+*.msi
+*.exe
+*.zip
+*.tar.gz
+*.tar.xz
