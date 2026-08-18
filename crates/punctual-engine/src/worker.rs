@@ -1,21 +1,21 @@
 use std::{sync::Arc, time::Duration as StdDuration};
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{bail, Context as _, Result};
 use chrono::{Duration, Utc};
 use crossbeam_channel::Sender;
 use punctual_browser::{
     BrowserPage, ClickDispatch, CompletionVerification, FingerprintLocator, RelocationResult,
 };
 use punctual_core::{
-    ClickAttemptGuard, ClickMode, ClickTask, CompletionSignal, EngineEvent, ExecutionLog,
-    ExecutionOutcome, ExecutionPlan, ExecutionResult, PreciseTimer, TargetFingerprint, TaskStatus,
-    truncate_to_millis, utc_now_millis,
+    truncate_to_millis, utc_now_millis, ClickAttemptGuard, ClickMode, ClickTask, CompletionSignal,
+    EngineEvent, ExecutionLog, ExecutionOutcome, ExecutionPlan, ExecutionResult, PreciseTimer,
+    TargetFingerprint, TaskStatus,
 };
 use punctual_storage::SqliteTaskRepository;
 use url::Url;
 use uuid::Uuid;
 
-use crate::{EngineConfig, browser_hub::BrowserHub};
+use crate::{browser_hub::BrowserHub, EngineConfig};
 
 pub(crate) async fn run_task(
     task_id: Uuid,
@@ -58,9 +58,7 @@ pub(crate) async fn run_task(
             persist_terminal(&repository, &events, &mut task, result).err()
         });
         let failure_message = fallback
-            .map(|persist_error| {
-                format!("{message}；同时无法写入终态：{persist_error:#}")
-            })
+            .map(|persist_error| format!("{message}；同时无法写入终态：{persist_error:#}"))
             .unwrap_or(message);
         let _ = events.send(EngineEvent::CommandFailed {
             request_id: None,
@@ -323,9 +321,7 @@ async fn run_task_inner(
                 observed_delay_ms: None,
                 final_url: current_page_url(&browser, &page, &task.url).await,
                 message: if guard.is_claimed() {
-                    format!(
-                        "点击尝试已经进入派发阶段，但浏览器未确认结果：{error:#}"
-                    )
+                    format!("点击尝试已经进入派发阶段，但浏览器未确认结果：{error:#}")
                 } else {
                     format!("目标时刻未能派发点击：{error:#}")
                 },
@@ -342,15 +338,8 @@ async fn run_task_inner(
     };
 
     let observed_click_at = utc_now_millis();
-    let result = verify_after_click(
-        &browser,
-        &page,
-        &task,
-        dispatch,
-        observed_click_at,
-        &config,
-    )
-    .await;
+    let result =
+        verify_after_click(&browser, &page, &task, dispatch, observed_click_at, &config).await;
     persist_terminal(&repository, &events, &mut task, result)?;
     Ok(())
 }
@@ -429,8 +418,8 @@ async fn verify_after_click(
     let browser_name = dispatch.browser_name.clone();
     let dispatched_at = truncate_to_millis(dispatch.dispatched_at);
     let observed_click_at = truncate_to_millis(observed_click_at);
-    let deadline = tokio::time::Instant::now()
-        + StdDuration::from_millis(config.completion_timeout_ms.max(1));
+    let deadline =
+        tokio::time::Instant::now() + StdDuration::from_millis(config.completion_timeout_ms.max(1));
     let mut final_url = Some(dispatch.completion_baseline.url.clone());
     let mut last_reason = "点击已派发，但尚未观察到配置的成功信号".to_owned();
 
@@ -475,10 +464,7 @@ async fn verify_after_click(
         if tokio::time::Instant::now() >= deadline {
             break;
         }
-        tokio::time::sleep(StdDuration::from_millis(
-            config.completion_poll_ms.max(1),
-        ))
-        .await;
+        tokio::time::sleep(StdDuration::from_millis(config.completion_poll_ms.max(1))).await;
     }
 
     ExecutionResult {
@@ -551,11 +537,7 @@ async fn sleep_until(deadline: chrono::DateTime<Utc>) {
     }
 }
 
-async fn current_page_url(
-    browser: &BrowserHub,
-    page: &BrowserPage,
-    fallback: &Url,
-) -> Option<Url> {
+async fn current_page_url(browser: &BrowserHub, page: &BrowserPage, fallback: &Url) -> Option<Url> {
     match browser.current_url(page).await {
         Ok(Some(value)) => Some(value),
         _ => Some(fallback.clone()),

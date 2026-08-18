@@ -198,16 +198,17 @@ pub fn discover_browsers(options: &BrowserDiscoveryOptions) -> BrowserInventory 
         });
     }
 
-    installations.extend(platform_installations(default_kind, options.resources_dir.as_deref()));
+    installations.extend(platform_installations(
+        default_kind,
+        options.resources_dir.as_deref(),
+    ));
 
     if let Some(managed) = managed_browser_installation(options.resources_dir.as_deref()) {
         installations.push(managed);
     }
 
     deduplicate(&mut installations);
-    installations.sort_by_key(|installation| {
-        priority(installation, preferred_kind, default_kind)
-    });
+    installations.sort_by_key(|installation| priority(installation, preferred_kind, default_kind));
 
     BrowserInventory {
         installations,
@@ -292,12 +293,24 @@ fn platform_installations(
     let geckodriver = find_geckodriver(resources_dir);
 
     let candidates = [
-        (BrowserKind::Chrome, "Google Chrome.app/Contents/MacOS/Google Chrome"),
-        (BrowserKind::Edge, "Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
-        (BrowserKind::Brave, "Brave Browser.app/Contents/MacOS/Brave Browser"),
+        (
+            BrowserKind::Chrome,
+            "Google Chrome.app/Contents/MacOS/Google Chrome",
+        ),
+        (
+            BrowserKind::Edge,
+            "Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+        ),
+        (
+            BrowserKind::Brave,
+            "Brave Browser.app/Contents/MacOS/Brave Browser",
+        ),
         (BrowserKind::Arc, "Arc.app/Contents/MacOS/Arc"),
         (BrowserKind::Vivaldi, "Vivaldi.app/Contents/MacOS/Vivaldi"),
-        (BrowserKind::Chromium, "Chromium.app/Contents/MacOS/Chromium"),
+        (
+            BrowserKind::Chromium,
+            "Chromium.app/Contents/MacOS/Chromium",
+        ),
         (BrowserKind::Opera, "Opera.app/Contents/MacOS/Opera"),
         (BrowserKind::Firefox, "Firefox.app/Contents/MacOS/firefox"),
     ];
@@ -369,7 +382,10 @@ fn platform_installations(
         for (kind, relative) in [
             (BrowserKind::Chrome, "Google/Chrome/Application/chrome.exe"),
             (BrowserKind::Edge, "Microsoft/Edge/Application/msedge.exe"),
-            (BrowserKind::Brave, "BraveSoftware/Brave-Browser/Application/brave.exe"),
+            (
+                BrowserKind::Brave,
+                "BraveSoftware/Brave-Browser/Application/brave.exe",
+            ),
             (BrowserKind::Vivaldi, "Vivaldi/Application/vivaldi.exe"),
             (BrowserKind::Chromium, "Chromium/Application/chrome.exe"),
             (BrowserKind::Firefox, "Mozilla Firefox/firefox.exe"),
@@ -409,8 +425,14 @@ fn platform_installations(
     let mut output = Vec::new();
     let geckodriver = find_geckodriver(resources_dir);
     for (kind, names) in [
-        (BrowserKind::Chrome, &["google-chrome", "google-chrome-stable"][..]),
-        (BrowserKind::Edge, &["microsoft-edge", "microsoft-edge-stable"][..]),
+        (
+            BrowserKind::Chrome,
+            &["google-chrome", "google-chrome-stable"][..],
+        ),
+        (
+            BrowserKind::Edge,
+            &["microsoft-edge", "microsoft-edge-stable"][..],
+        ),
         (BrowserKind::Brave, &["brave-browser"][..]),
         (BrowserKind::Vivaldi, &["vivaldi", "vivaldi-stable"][..]),
         (BrowserKind::Chromium, &["chromium", "chromium-browser"][..]),
@@ -506,9 +528,8 @@ fn find_in_path(name: &str) -> Option<PathBuf> {
 #[cfg(target_os = "macos")]
 fn detect_default_browser_kind() -> Option<BrowserKind> {
     let home = env::var_os("HOME").map(PathBuf::from)?;
-    let plist = home.join(
-        "Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist",
-    );
+    let plist = home
+        .join("Library/Preferences/com.apple.LaunchServices/com.apple.launchservices.secure.plist");
     let output = Command::new("/usr/bin/plutil")
         .args(["-extract", "LSHandlers", "json", "-o", "-"])
         .arg(plist)
@@ -601,9 +622,8 @@ fn kind_from_macos_bundle_id(bundle_id: &str) -> Option<BrowserKind> {
 }
 
 fn infer_chromium_kind(path: &Path) -> Option<BrowserKind> {
-    infer_kind_from_text(&path.to_string_lossy()).filter(|kind| {
-        !matches!(kind, BrowserKind::Firefox | BrowserKind::Safari)
-    })
+    infer_kind_from_text(&path.to_string_lossy())
+        .filter(|kind| !matches!(kind, BrowserKind::Firefox | BrowserKind::Safari))
 }
 
 fn infer_kind_from_text(value: &str) -> Option<BrowserKind> {

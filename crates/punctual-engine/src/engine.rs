@@ -1,18 +1,17 @@
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{bail, Context as _, Result};
 use crossbeam_channel::Sender;
-use punctual_browser::{BrowserPage, ManualValidation, validate_manual_text};
+use punctual_browser::{validate_manual_text, BrowserPage, ManualValidation};
 use punctual_core::{
-    EngineCommand, EngineEvent, ManualTargetValidation, TargetCandidate, TaskStatus,
-    utc_now_millis,
+    utc_now_millis, EngineCommand, EngineEvent, ManualTargetValidation, TargetCandidate, TaskStatus,
 };
 use punctual_storage::SqliteTaskRepository;
 use tokio::{sync::mpsc, task::JoinHandle, time::MissedTickBehavior};
 use url::Url;
 use uuid::Uuid;
 
-use crate::{EngineConfig, browser_hub::BrowserHub, worker};
+use crate::{browser_hub::BrowserHub, worker, EngineConfig};
 
 struct InspectionSession {
     url: Url,
@@ -50,9 +49,8 @@ impl Engine {
     }
 
     pub(crate) async fn run(mut self) {
-        let mut ticker = tokio::time::interval(Duration::from_millis(
-            self.config.scheduler_tick_ms.max(25),
-        ));
+        let mut ticker =
+            tokio::time::interval(Duration::from_millis(self.config.scheduler_tick_ms.max(25)));
         ticker.set_missed_tick_behavior(MissedTickBehavior::Skip);
 
         if let Err(error) = self.reconcile_workers().await {
@@ -126,9 +124,7 @@ impl Engine {
 
                 let validation = match validate_manual_text(&text, &candidates) {
                     ManualValidation::Unique(value) => ManualTargetValidation::Unique(value),
-                    ManualValidation::Multiple(values) => {
-                        ManualTargetValidation::Multiple(values)
-                    }
+                    ManualValidation::Multiple(values) => ManualTargetValidation::Multiple(values),
                     ManualValidation::NotClickable(values) => {
                         ManualTargetValidation::NotClickable(values)
                     }
@@ -147,10 +143,9 @@ impl Engine {
                     .map(|session| session.page.clone())
                     .context("请先打开 URL 并检测页面按钮")?;
                 let found = self.browser.highlight(&page, &target).await?;
-                let _ = self.events.send(EngineEvent::TargetHighlighted {
-                    request_id,
-                    found,
-                });
+                let _ = self
+                    .events
+                    .send(EngineEvent::TargetHighlighted { request_id, found });
             }
             EngineCommand::SaveTask { request_id, task } => {
                 if task.status != TaskStatus::Pending {
@@ -240,12 +235,7 @@ impl Engine {
             if let Some(handle) = self.workers.remove(&task_id) {
                 if let Err(error) = handle.await {
                     if !error.is_cancelled() {
-                        self.emit_failure(
-                            None,
-                            Some(task_id),
-                            "scheduler_join",
-                            error.into(),
-                        );
+                        self.emit_failure(None, Some(task_id), "scheduler_join", error.into());
                     }
                 }
             }
@@ -292,7 +282,11 @@ impl Engine {
     }
 
     async fn shutdown(&mut self) {
-        let workers = self.workers.drain().map(|(_, handle)| handle).collect::<Vec<_>>();
+        let workers = self
+            .workers
+            .drain()
+            .map(|(_, handle)| handle)
+            .collect::<Vec<_>>();
         for handle in &workers {
             handle.abort();
         }

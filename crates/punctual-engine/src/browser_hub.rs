@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 
-use anyhow::{Context as _, Result, anyhow};
+use anyhow::{anyhow, Context as _, Result};
 use crossbeam_channel::Sender;
 use punctual_browser::{
-    BrowserDiscoveryOptions, BrowserInstallation, BrowserPage, BrowserSession, ClickDispatch,
-    CompletionVerification, TargetProbe, discover_browsers,
+    discover_browsers, BrowserDiscoveryOptions, BrowserInstallation, BrowserPage, BrowserSession,
+    ClickDispatch, CompletionVerification, TargetProbe,
 };
 use punctual_core::{
     ClickAttemptGuard, CompletionSignal, EngineEvent, TargetCandidate, TargetFingerprint,
@@ -91,7 +91,8 @@ impl BrowserHub {
                     } else {
                         ""
                     };
-                    let safari_note = if installation.kind == punctual_browser::BrowserKind::Safari {
+                    let safari_note = if installation.kind == punctual_browser::BrowserKind::Safari
+                    {
                         "；Safari 自动化窗口与日常浏览数据隔离"
                     } else {
                         ""
@@ -142,10 +143,7 @@ impl BrowserHub {
             .await
     }
 
-    pub(crate) async fn detect_targets(
-        &self,
-        page: &BrowserPage,
-    ) -> Result<Vec<TargetCandidate>> {
+    pub(crate) async fn detect_targets(&self, page: &BrowserPage) -> Result<Vec<TargetCandidate>> {
         let guard = self.session().await?;
         guard
             .as_ref()

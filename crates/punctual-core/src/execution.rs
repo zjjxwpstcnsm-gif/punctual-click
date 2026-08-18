@@ -107,10 +107,7 @@ impl ExecutionPlan {
 
 impl ExecutionPlanConfig {
     fn validate(self) -> Result<(), ExecutionPlanError> {
-        if self.prewarm_before_ms < 0
-            || self.resolve_before_ms < 0
-            || self.arm_before_ms < 0
-        {
+        if self.prewarm_before_ms < 0 || self.resolve_before_ms < 0 || self.arm_before_ms < 0 {
             return Err(ExecutionPlanError::NegativeOffset);
         }
         if self.prewarm_before_ms < self.resolve_before_ms

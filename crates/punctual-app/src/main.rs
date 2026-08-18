@@ -5,7 +5,7 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use anyhow::Result;
 use directories::ProjectDirs;
-use gpui::{AppContext as _, Application, WindowBounds, WindowOptions, px, size};
+use gpui::{px, size, AppContext as _, Application, WindowBounds, WindowOptions};
 use gpui_component::Root;
 use punctual_engine::{EngineConfig, EngineHandle};
 use punctual_storage::SqliteTaskRepository;
@@ -35,10 +35,7 @@ fn main() -> Result<()> {
         gpui_component::init(cx);
 
         let window_options = WindowOptions {
-            window_bounds: Some(WindowBounds::centered(
-                size(px(1280.0), px(820.0)),
-                cx,
-            )),
+            window_bounds: Some(WindowBounds::centered(size(px(1280.0), px(820.0)), cx)),
             window_min_size: Some(size(px(960.0), px(640.0))),
             ..Default::default()
         };
@@ -51,9 +48,7 @@ fn main() -> Result<()> {
         .detach();
 
         cx.open_window(window_options, move |window, cx| {
-            let view = cx.new(|cx| {
-                PunctualDashboard::new(repository, engine, window, cx)
-            });
+            let view = cx.new(|cx| PunctualDashboard::new(repository, engine, window, cx));
             cx.new(|cx| Root::new(view, window, cx))
         })
         .expect("failed to open the Punctual window");

@@ -38,7 +38,9 @@ fn main() {
     for candidate in CandidateScorer::default().infer(candidates) {
         println!(
             "{:>3}%  {:<12}  {}",
-            candidate.confidence, candidate.best_name(), candidate.score_reasons.join("; ")
+            candidate.confidence,
+            candidate.best_name(),
+            candidate.score_reasons.join("; ")
         );
     }
 }
