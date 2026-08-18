@@ -1,0 +1,73 @@
+name: Owner Source Bootstrap
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  import-source:
+    if: github.event.issue.user.login == github.repository_owner && github.event.issue.title == '[bootstrap] Import complete Punctual source'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch verified source mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone \
+            --depth 1 \
+            --branch punctual-publish-staging-20260818 \
+            https://github.com/zjjxwpstcnsm-gif/pasteguard.git \
+            /tmp/punctual-source-mirror
+          test -f /tmp/punctual-source-mirror/exports/source-tree/Cargo.toml
+          test -f /tmp/punctual-source-mirror/exports/source-tree/Cargo.lock
+          rsync -a /tmp/punctual-source-mirror/exports/source-tree/ ./
+
+      - name: Preserve release automation and validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'version = "0.1.0-alpha.5"' Cargo.toml
+          python3 scripts/rust-delimiter-check.py
+          python3 scripts/project-consistency-check.py
+          node --check scripts/detect_buttons.js
+          node --check scripts/highlight_button.js
+          node --check scripts/probe_target.js
+          test -f Cargo.lock
+          test -f .github/workflows/release.yml
+          test -f packaging/macos/build-release.sh
+          test -f packaging/windows/build-release.ps1
+
+      - name: Commit complete source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf bootstrap
+          rm -f .github/workflows/bootstrap-source.yml
+          rm -f .github/workflows/bootstrap-source-on-issue.yml
+          chmod +x packaging/macos/build-release.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git update-index --chmod=+x packaging/macos/build-release.sh
+          if ! git diff --cached --quiet; then
+            git commit -m "feat: import complete Punctual 0.1.0-alpha.5 source"
+            git push origin HEAD:main
+          fi
+
+      - name: Close bootstrap issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh issue close "${{ github.event.issue.number }}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --comment "Complete Punctual source tree imported and validated."
