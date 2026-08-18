@@ -24,6 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          cargo generate-lockfile
           export PUNCTUAL_VERSION="${PUNCTUAL_VERSION#v}"
           ./packaging/macos/build-release.sh
       - uses: actions/upload-artifact@v4
@@ -46,6 +47,8 @@ jobs:
       - name: Build Windows release
         shell: pwsh
         run: |
+          cargo generate-lockfile
+          if ($LASTEXITCODE -ne 0) { throw "cargo generate-lockfile failed" }
           $version = "${{ github.ref_name }}" -replace '^v', ''
           ./packaging/windows/build-release.ps1 -Version $version
       - uses: actions/upload-artifact@v4

@@ -1,0 +1,37 @@
+name: Bootstrap Tagged Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".release/*.json"
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create release tag from marker
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="$(find .release -maxdepth 1 -name '*.json' -print | sort | tail -n 1)"
+          test -n "${marker}"
+          tag="$(jq -r '.tag' "${marker}")"
+          test -n "${tag}"
+          if git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} already exists"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${tag}" -m "Punctual ${tag}"
+          git push origin "${tag}"
