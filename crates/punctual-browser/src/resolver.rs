@@ -37,15 +37,7 @@ impl Default for CandidateScorer {
                 "register",
             ],
             [
-                "取消",
-                "返回",
-                "关闭",
-                "删除",
-                "稍后",
-                "cancel",
-                "back",
-                "close",
-                "delete",
+                "取消", "返回", "关闭", "删除", "稍后", "cancel", "back", "close", "delete",
                 "later",
             ],
         )
@@ -183,7 +175,10 @@ impl CandidateScorer {
             }
         }
 
-        if contains_any(&context, &["商品", "订单", "购物车", "结算", "product", "order", "cart"]) {
+        if contains_any(
+            &context,
+            &["商品", "订单", "购物车", "结算", "product", "order", "cart"],
+        ) {
             score += 10;
             reasons.push("上下文位于商品、订单或结算区域 +10".into());
         }

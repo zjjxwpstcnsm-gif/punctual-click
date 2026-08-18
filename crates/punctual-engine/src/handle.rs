@@ -1,14 +1,12 @@
 use std::{
     path::PathBuf,
-    sync::{Arc, mpsc as std_mpsc},
+    sync::{mpsc as std_mpsc, Arc},
     thread::{self, JoinHandle},
 };
 
-use anyhow::{Context as _, Result, anyhow};
-use crossbeam_channel::{Receiver, Sender, unbounded};
-use punctual_core::{
-    EngineCommand, EngineEvent, ExecutionPlanConfig, PreciseTimerConfig,
-};
+use anyhow::{anyhow, Context as _, Result};
+use crossbeam_channel::{unbounded, Receiver, Sender};
+use punctual_core::{EngineCommand, EngineEvent, ExecutionPlanConfig, PreciseTimerConfig};
 use punctual_storage::SqliteTaskRepository;
 use tokio::{runtime::Builder, sync::mpsc};
 
@@ -59,14 +57,10 @@ pub struct EngineHandle {
 }
 
 impl EngineHandle {
-    pub fn start(
-        repository: Arc<SqliteTaskRepository>,
-        config: EngineConfig,
-    ) -> Result<Self> {
+    pub fn start(repository: Arc<SqliteTaskRepository>, config: EngineConfig) -> Result<Self> {
         let (command_tx, command_rx) = mpsc::unbounded_channel();
         let (event_tx, event_rx): (Sender<EngineEvent>, Receiver<EngineEvent>) = unbounded();
-        let (startup_tx, startup_rx) =
-            std_mpsc::sync_channel::<std::result::Result<(), String>>(1);
+        let (startup_tx, startup_rx) = std_mpsc::sync_channel::<std::result::Result<(), String>>(1);
 
         let thread = thread::Builder::new()
             .name("punctual-engine".into())

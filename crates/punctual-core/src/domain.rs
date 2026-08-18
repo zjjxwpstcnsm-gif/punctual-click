@@ -472,7 +472,10 @@ mod tests {
     #[test]
     fn maps_internal_states_to_two_level_overview() {
         assert_eq!(TaskStatus::Armed.overview(), TaskOverviewStatus::Pending);
-        assert_eq!(TaskStatus::Succeeded.overview(), TaskOverviewStatus::Executed);
+        assert_eq!(
+            TaskStatus::Succeeded.overview(),
+            TaskOverviewStatus::Executed
+        );
         assert_eq!(TaskStatus::Failed.overview(), TaskOverviewStatus::Executed);
     }
 
@@ -518,5 +521,4 @@ mod tests {
             DomainError::TargetNotVerified
         );
     }
-
 }

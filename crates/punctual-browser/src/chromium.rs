@@ -3,13 +3,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::{Context as _, Result, bail};
-use chrono::Utc;
+use anyhow::{bail, Context as _, Result};
 use chromiumoxide::{
-    Page,
     browser::{Browser, BrowserConfig},
     layout::Point,
+    Page,
 };
+use chrono::Utc;
 use futures::StreamExt;
 use punctual_core::{ClickAttemptGuard, CompletionSignal, TargetCandidate, TargetFingerprint};
 use serde::{Deserialize, Serialize};
@@ -17,9 +17,9 @@ use tokio::task::JoinHandle;
 use url::Url;
 
 use crate::{
-    CandidateScorer, ClickDispatch, CompletionBaseline, CompletionVerification,
-    CompletionVerifier, DETECT_BUTTONS_SCRIPT, HIGHLIGHT_BUTTON_SCRIPT, PROBE_TARGET_SCRIPT,
-    PageObservation, TargetProbe,
+    CandidateScorer, ClickDispatch, CompletionBaseline, CompletionVerification, CompletionVerifier,
+    PageObservation, TargetProbe, DETECT_BUTTONS_SCRIPT, HIGHLIGHT_BUTTON_SCRIPT,
+    PROBE_TARGET_SCRIPT,
 };
 
 pub struct ChromiumSession {
@@ -203,22 +203,19 @@ impl ChromiumSession {
         let mut observation_errors = Vec::new();
 
         for candidate in candidates {
-            let observation = match observe_page(
-                &candidate.page,
-                &dispatch.completion_baseline.url,
-                signals,
-            )
-            .await
-            {
-                Ok(observation) => observation,
-                Err(error) => {
-                    observation_errors.push(format!(
-                        "{}读取失败：{error:#}",
-                        candidate.kind.display_name()
-                    ));
-                    continue;
-                }
-            };
+            let observation =
+                match observe_page(&candidate.page, &dispatch.completion_baseline.url, signals)
+                    .await
+                {
+                    Ok(observation) => observation,
+                    Err(error) => {
+                        observation_errors.push(format!(
+                            "{}读取失败：{error:#}",
+                            candidate.kind.display_name()
+                        ));
+                        continue;
+                    }
+                };
 
             // New targets commonly begin as about:blank while navigation is
             // still being committed. Ignore that transient state and let the
@@ -369,7 +366,6 @@ impl ChromiumSession {
     }
 }
 
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CompletionPageKind {
     DirectNew,
@@ -466,7 +462,6 @@ fn target_key(page: &Page) -> String {
 fn is_meaningful_result_url(url: &Url) -> bool {
     matches!(url.scheme(), "http" | "https")
 }
-
 
 fn script_call(script: &str, target: &TargetFingerprint) -> Result<String> {
     let selector = target

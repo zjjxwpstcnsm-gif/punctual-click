@@ -1,8 +1,8 @@
 use std::{collections::BTreeSet, path::Path};
 
-use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
+use anyhow::{bail, Result};
 use chromiumoxide::Page;
+use chrono::{DateTime, Utc};
 use punctual_core::{ClickAttemptGuard, CompletionSignal, TargetCandidate, TargetFingerprint};
 use url::Url;
 
@@ -50,10 +50,7 @@ pub enum BrowserSession {
 }
 
 impl BrowserSession {
-    pub async fn launch(
-        installation: &BrowserInstallation,
-        profile_root: &Path,
-    ) -> Result<Self> {
+    pub async fn launch(installation: &BrowserInstallation, profile_root: &Path) -> Result<Self> {
         let profile_dir = installation.profile_dir(profile_root);
         match installation.backend() {
             BrowserBackend::ChromiumCdp => {
@@ -61,13 +58,9 @@ impl BrowserSession {
                     .executable
                     .as_deref()
                     .ok_or_else(|| anyhow::anyhow!("Chromium 浏览器缺少可执行文件路径"))?;
-                ChromiumSession::launch(
-                    profile_dir,
-                    Some(executable),
-                    installation.display_name(),
-                )
-                .await
-                .map(Self::Chromium)
+                ChromiumSession::launch(profile_dir, Some(executable), installation.display_name())
+                    .await
+                    .map(Self::Chromium)
             }
             BrowserBackend::WebDriverSafari | BrowserBackend::WebDriverFirefox => {
                 WebDriverSession::launch(installation, profile_dir)
@@ -103,11 +96,7 @@ impl BrowserSession {
         }
     }
 
-    pub async fn highlight(
-        &self,
-        page: &BrowserPage,
-        target: &TargetFingerprint,
-    ) -> Result<bool> {
+    pub async fn highlight(&self, page: &BrowserPage, target: &TargetFingerprint) -> Result<bool> {
         match (self, page) {
             (Self::Chromium(session), BrowserPage::Chromium(page)) => {
                 session.highlight(page, target).await
@@ -188,12 +177,10 @@ impl BrowserSession {
 
     pub async fn current_url(&self, page: &BrowserPage) -> Result<Option<Url>> {
         match (self, page) {
-            (Self::Chromium(_), BrowserPage::Chromium(page)) => {
-                match page.url().await? {
-                    Some(value) => Ok(Some(Url::parse(&value)?)),
-                    None => Ok(None),
-                }
-            }
+            (Self::Chromium(_), BrowserPage::Chromium(page)) => match page.url().await? {
+                Some(value) => Ok(Some(Url::parse(&value)?)),
+                None => Ok(None),
+            },
             (Self::WebDriver(session), BrowserPage::WebDriver(page)) => {
                 session.current_url(page).await.map(Some)
             }

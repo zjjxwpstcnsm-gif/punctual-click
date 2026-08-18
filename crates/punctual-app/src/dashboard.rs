@@ -6,16 +6,16 @@ use std::{
 };
 
 use gpui::{
-    ClipboardItem, Context, Div, Entity, Render, SharedString, Stateful, Task, Window, div,
-    prelude::*, px, rgb,
+    div, prelude::*, px, rgb, ClipboardItem, Context, Div, Entity, Render, SharedString, Stateful,
+    Task, Window,
 };
 use gpui_component::{
     input::{Input, InputState},
     scroll::ScrollableElement as _,
 };
 use punctual_core::{
-    ClickTask, EngineCommand, EngineEvent, ExecutionLog, ExecutionOutcome,
-    ManualTargetValidation, TargetCandidate, TargetFingerprint, TaskStatus, format_in_timezone,
+    format_in_timezone, ClickTask, EngineCommand, EngineEvent, ExecutionLog, ExecutionOutcome,
+    ManualTargetValidation, TargetCandidate, TargetFingerprint, TaskStatus,
 };
 use punctual_engine::EngineHandle;
 use punctual_storage::SqliteTaskRepository;
@@ -130,36 +130,31 @@ impl PunctualDashboard {
                             self.editor.validated_manual_text = Some(text.trim().to_owned());
                             self.editor.candidates = vec![candidate.clone()];
                             self.editor.choose_candidate(&candidate);
-                            self.editor.message = format!(
-                                "验证通过：“{text}”唯一对应当前可点击按钮"
-                            );
+                            self.editor.message =
+                                format!("验证通过：“{text}”唯一对应当前可点击按钮");
                         }
                         ManualTargetValidation::Multiple(candidates) => {
                             self.editor.validated_manual_text = Some(text.trim().to_owned());
                             self.editor.candidates = candidates;
                             self.editor.selected_candidate_id = None;
                             self.editor.selected_target = None;
-                            self.editor.message = format!(
-                                "找到多个可点击的“{text}”，请结合页面上下文选择"
-                            );
+                            self.editor.message =
+                                format!("找到多个可点击的“{text}”，请结合页面上下文选择");
                         }
                         ManualTargetValidation::NotClickable(candidates) => {
                             self.editor.validated_manual_text = None;
                             self.editor.candidates = candidates;
                             self.editor.selected_candidate_id = None;
                             self.editor.selected_target = None;
-                            self.editor.message = format!(
-                                "页面存在“{text}”，但当前没有匹配项能够接收点击"
-                            );
+                            self.editor.message =
+                                format!("页面存在“{text}”，但当前没有匹配项能够接收点击");
                         }
                         ManualTargetValidation::NotFound => {
                             self.editor.validated_manual_text = None;
                             self.editor.candidates.clear();
                             self.editor.selected_candidate_id = None;
                             self.editor.selected_target = None;
-                            self.editor.message = format!(
-                                "没有找到文案精确为“{text}”的可点击元素"
-                            );
+                            self.editor.message = format!("没有找到文案精确为“{text}”的可点击元素");
                         }
                     }
                     self.notice = self.editor.message.clone().into();
@@ -204,7 +199,8 @@ impl PunctualDashboard {
                 }
                 EngineEvent::TaskCompleted { task, log } => {
                     let task_id = task.id;
-                    if let Some(existing) = self.tasks.iter_mut().find(|value| value.id == task_id) {
+                    if let Some(existing) = self.tasks.iter_mut().find(|value| value.id == task_id)
+                    {
                         *existing = task.clone();
                     } else {
                         self.tasks.push(task.clone());
@@ -216,15 +212,13 @@ impl PunctualDashboard {
                     self.notice = match task.status {
                         TaskStatus::Succeeded => "任务执行成功".into(),
                         TaskStatus::Failed => "任务执行失败；详情已写入执行记录".into(),
-                        TaskStatus::Uncertain => {
-                            "点击已派发，但页面没有提供足够的成功证据".into()
-                        }
+                        TaskStatus::Uncertain => "点击已派发，但页面没有提供足够的成功证据".into(),
                         _ => format!("任务状态：{}", task.status.label_zh()).into(),
                     };
                 }
-                EngineEvent::ExecutionLogsLoaded {
-                    task_id, logs, ..
-                } if self.selected == Some(task_id) => {
+                EngineEvent::ExecutionLogsLoaded { task_id, logs, .. }
+                    if self.selected == Some(task_id) =>
+                {
                     self.logs = logs;
                     self.logs_task_id = Some(task_id);
                 }
@@ -392,11 +386,7 @@ impl PunctualDashboard {
         }
     }
 
-    fn render_task_card(
-        task: ClickTask,
-        selected: bool,
-        cx: &mut Context<Self>,
-    ) -> Stateful<Div> {
+    fn render_task_card(task: ClickTask, selected: bool, cx: &mut Context<Self>) -> Stateful<Div> {
         let id = task.id;
         let (status_color, status_bg) = status_colors(task.status);
         let scheduled = format_in_timezone(task.scheduled_at_utc, &task.timezone)
@@ -411,7 +401,11 @@ impl PunctualDashboard {
             .rounded_lg()
             .border_1()
             .border_color(if selected { rgb(PRIMARY) } else { rgb(BORDER) })
-            .bg(if selected { rgb(PRIMARY_SOFT) } else { rgb(PANEL) })
+            .bg(if selected {
+                rgb(PRIMARY_SOFT)
+            } else {
+                rgb(PANEL)
+            })
             .cursor_pointer()
             .hover(|style| style.border_color(rgb(PRIMARY)))
             .on_click(cx.listener(move |this, _, _, cx| {
@@ -505,13 +499,7 @@ impl PunctualDashboard {
         cx: &mut Context<Self>,
     ) -> Div {
         let identity = element_key(&(label_text, value.as_str()));
-        let copy_button = self.copy_button(
-            "copy-info",
-            identity,
-            value.clone(),
-            label_text,
-            cx,
-        );
+        let copy_button = self.copy_button("copy-info", identity, value.clone(), label_text, cx);
 
         div()
             .flex()
@@ -600,11 +588,13 @@ impl PunctualDashboard {
                             .min_w(px(280.0))
                             .gap_1()
                             .child(
-                                div().text_2xl().child(if self.editor.editing_task.is_some() {
-                                    "编辑点击任务"
-                                } else {
-                                    "新建点击任务"
-                                }),
+                                div()
+                                    .text_2xl()
+                                    .child(if self.editor.editing_task.is_some() {
+                                        "编辑点击任务"
+                                    } else {
+                                        "新建点击任务"
+                                    }),
                             )
                             .child(
                                 div()
@@ -615,11 +605,12 @@ impl PunctualDashboard {
                             ),
                     )
                     .child(
-                        secondary_button("close-editor", "关闭")
-                            .on_click(cx.listener(|this, _, _, cx| {
+                        secondary_button("close-editor", "关闭").on_click(cx.listener(
+                            |this, _, _, cx| {
                                 this.editor_open = false;
                                 cx.notify();
-                            })),
+                            },
+                        )),
                     ),
             )
             .child(
@@ -726,11 +717,12 @@ impl PunctualDashboard {
                                                 .child(Input::new(&self.editor.manual_text)),
                                         )
                                         .child(
-                                            primary_button("validate-manual", "验证文案")
-                                                .on_click(cx.listener(|this, _, _, cx| {
+                                            primary_button("validate-manual", "验证文案").on_click(
+                                                cx.listener(|this, _, _, cx| {
                                                     this.validate_manual_target(cx);
                                                     cx.notify();
-                                                })),
+                                                }),
+                                            ),
                                         ),
                                 )
                             })
@@ -749,12 +741,14 @@ impl PunctualDashboard {
                                                 "检测页面按钮"
                                             },
                                         )
-                                        .on_click(cx.listener(|this, _, _, cx| {
-                                            if !this.editor.busy {
-                                                this.detect_targets(cx);
-                                                cx.notify();
-                                            }
-                                        })),
+                                        .on_click(
+                                            cx.listener(|this, _, _, cx| {
+                                                if !this.editor.busy {
+                                                    this.detect_targets(cx);
+                                                    cx.notify();
+                                                }
+                                            }),
+                                        ),
                                     )
                                     .child(
                                         div()
@@ -784,7 +778,8 @@ impl PunctualDashboard {
                                                     click_mode == EditorClickMode::Strict,
                                                 )
                                                 .on_click(cx.listener(|this, _, _, cx| {
-                                                    this.editor.click_mode = EditorClickMode::Strict;
+                                                    this.editor.click_mode =
+                                                        EditorClickMode::Strict;
                                                     cx.notify();
                                                 })),
                                             )
@@ -869,11 +864,12 @@ impl PunctualDashboard {
                         .justify_end()
                         .gap_3()
                         .child(
-                            secondary_button("cancel-save", "取消")
-                                .on_click(cx.listener(|this, _, _, cx| {
+                            secondary_button("cancel-save", "取消").on_click(cx.listener(
+                                |this, _, _, cx| {
                                     this.editor_open = false;
                                     cx.notify();
-                                })),
+                                },
+                            )),
                         )
                         .child(
                             primary_button(
@@ -909,8 +905,8 @@ impl PunctualDashboard {
         candidate: TargetCandidate,
         cx: &mut Context<Self>,
     ) -> Stateful<Div> {
-        let selected = self.editor.selected_candidate_id.as_deref()
-            == Some(candidate.candidate_id.as_str());
+        let selected =
+            self.editor.selected_candidate_id.as_deref() == Some(candidate.candidate_id.as_str());
         let candidate_for_select = candidate.clone();
         let target_for_highlight = candidate.to_fingerprint();
         let state_text = if candidate.is_clickable_now() {
@@ -939,7 +935,11 @@ impl PunctualDashboard {
             .rounded_lg()
             .border_1()
             .border_color(if selected { rgb(PRIMARY) } else { rgb(BORDER) })
-            .bg(if selected { rgb(PRIMARY_SOFT) } else { rgb(PANEL) })
+            .bg(if selected {
+                rgb(PRIMARY_SOFT)
+            } else {
+                rgb(PANEL)
+            })
             .cursor_pointer()
             .hover(|style| style.border_color(rgb(PRIMARY)))
             .on_click(cx.listener(move |this, _, _, cx| {
@@ -1031,21 +1031,13 @@ impl PunctualDashboard {
             _ => "未派发点击".into(),
         };
         let final_url = log.final_url.as_ref().map(ToString::to_string);
-        let mut copy_text = format!(
-            "执行结果：{outcome_label}\n{timing}\n说明：{}",
-            log.message
-        );
+        let mut copy_text = format!("执行结果：{outcome_label}\n{timing}\n说明：{}", log.message);
         if let Some(url) = &final_url {
             copy_text.push_str("\n结果页面：");
             copy_text.push_str(url);
         }
-        let copy_button = self.copy_button(
-            "copy-log",
-            element_key(&log.id),
-            copy_text,
-            "执行记录",
-            cx,
-        );
+        let copy_button =
+            self.copy_button("copy-log", element_key(&log.id), copy_text, "执行记录", cx);
 
         div()
             .flex()
@@ -1063,11 +1055,7 @@ impl PunctualDashboard {
                     .justify_between()
                     .items_center()
                     .gap_2()
-                    .child(
-                        div()
-                            .text_color(rgb(color))
-                            .child(outcome_label),
-                    )
+                    .child(div().text_color(rgb(color)).child(outcome_label))
                     .child(
                         div()
                             .flex()
@@ -1122,7 +1110,12 @@ impl PunctualDashboard {
                 .p_6()
                 .bg(rgb(PANEL))
                 .text_color(rgb(MUTED))
-                .child(div().text_2xl().text_color(rgb(TEXT)).child("还没有点击任务"))
+                .child(
+                    div()
+                        .text_2xl()
+                        .text_color(rgb(TEXT))
+                        .child("还没有点击任务"),
+                )
                 .child(
                     div()
                         .whitespace_normal()
@@ -1253,19 +1246,19 @@ impl PunctualDashboard {
                         .flex()
                         .flex_wrap()
                         .gap_3()
+                        .child(primary_button("edit-task", "编辑 / 重新安排").on_click(
+                            cx.listener(|this, _, window, cx| {
+                                this.open_edit_editor(window, cx);
+                                cx.notify();
+                            }),
+                        ))
                         .child(
-                            primary_button("edit-task", "编辑 / 重新安排")
-                                .on_click(cx.listener(|this, _, window, cx| {
-                                    this.open_edit_editor(window, cx);
-                                    cx.notify();
-                                })),
-                        )
-                        .child(
-                            danger_button("delete-task", "删除任务")
-                                .on_click(cx.listener(|this, _, _, cx| {
+                            danger_button("delete-task", "删除任务").on_click(cx.listener(
+                                |this, _, _, cx| {
                                     this.delete_selected();
                                     cx.notify();
-                                })),
+                                },
+                            )),
                         ),
                 )
             })
@@ -1325,7 +1318,6 @@ impl PunctualDashboard {
             .bg(rgb(PANEL))
             .child(content.overflow_y_scrollbar())
     }
-
 }
 
 impl Render for PunctualDashboard {
@@ -1339,7 +1331,11 @@ impl Render for PunctualDashboard {
                 Self::render_task_card(task, selected, cx)
             })
             .collect::<Vec<_>>();
-        let connection_color = if self.browser_connected { SUCCESS } else { MUTED };
+        let connection_color = if self.browser_connected {
+            SUCCESS
+        } else {
+            MUTED
+        };
         let right_panel = if self.editor_open {
             self.render_editor(cx)
         } else {
@@ -1471,13 +1467,12 @@ impl Render for PunctualDashboard {
                                     .gap_3()
                                     .p_4()
                                     .child(div().text_lg().child("点击任务"))
-                                    .child(
-                                        primary_button("new-task", "＋ 新建任务")
-                                            .on_click(cx.listener(|this, _, window, cx| {
-                                                this.open_new_editor(window, cx);
-                                                cx.notify();
-                                            })),
-                                    ),
+                                    .child(primary_button("new-task", "＋ 新建任务").on_click(
+                                        cx.listener(|this, _, window, cx| {
+                                            this.open_new_editor(window, cx);
+                                            cx.notify();
+                                        }),
+                                    )),
                             )
                             .child(task_list),
                     )
@@ -1564,7 +1559,11 @@ fn choice_button(id: &'static str, text: &'static str, selected: bool) -> Statef
         .rounded_md()
         .border_1()
         .border_color(if selected { rgb(PRIMARY) } else { rgb(BORDER) })
-        .bg(if selected { rgb(PRIMARY_SOFT) } else { rgb(PANEL) })
+        .bg(if selected {
+            rgb(PRIMARY_SOFT)
+        } else {
+            rgb(PANEL)
+        })
         .text_color(if selected { rgb(PRIMARY) } else { rgb(TEXT) })
         .text_sm()
         .cursor_pointer()

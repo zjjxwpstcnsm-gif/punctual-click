@@ -2,8 +2,8 @@ use chrono::{Datelike, NaiveDateTime, Timelike, Utc};
 use gpui::{App, AppContext as _, Context, Entity, Window};
 use gpui_component::input::InputState;
 use punctual_core::{
-    ClickMode, ClickTask, CompletionSignal, LocalScheduleInput, TargetCandidate,
-    TargetFingerprint, TargetRule, TaskStatus, format_in_timezone,
+    format_in_timezone, ClickMode, ClickTask, CompletionSignal, LocalScheduleInput,
+    TargetCandidate, TargetFingerprint, TargetRule, TaskStatus,
 };
 use url::Url;
 use uuid::Uuid;
@@ -54,12 +54,7 @@ impl TaskEditor {
             editing_task: None,
             title: new_input(window, cx, "例如：提交订单", ""),
             url: new_input(window, cx, "https://example.com/checkout", ""),
-            local_datetime: new_input(
-                window,
-                cx,
-                "YYYY-MM-DD HH:MM:SS.mmm",
-                &datetime,
-            ),
+            local_datetime: new_input(window, cx, "YYYY-MM-DD HH:MM:SS.mmm", &datetime),
             timezone: new_input(window, cx, "Asia/Shanghai", &timezone),
             manual_text: new_input(window, cx, "例如：提交订单", ""),
             success_text: new_input(window, cx, "可选，例如：订单提交成功", ""),
@@ -95,8 +90,18 @@ impl TaskEditor {
         set_input(&self.title, task.title.clone(), window, cx);
         set_input(&self.url, task.url.to_string(), window, cx);
         let local = format_in_timezone(task.scheduled_at_utc, &task.timezone)
-            .map(|value| value.split_whitespace().take(2).collect::<Vec<_>>().join(" "))
-            .unwrap_or_else(|_| task.scheduled_at_utc.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+            .map(|value| {
+                value
+                    .split_whitespace()
+                    .take(2)
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .unwrap_or_else(|_| {
+                task.scheduled_at_utc
+                    .format("%Y-%m-%d %H:%M:%S%.3f")
+                    .to_string()
+            });
         set_input(&self.local_datetime, local, window, cx);
         set_input(&self.timezone, task.timezone.clone(), window, cx);
 
@@ -199,10 +204,7 @@ impl TaskEditor {
             }
         }
 
-        self.message = format!(
-            "发现 {} 个候选；请选择目标按钮",
-            self.candidates.len()
-        );
+        self.message = format!("发现 {} 个候选；请选择目标按钮", self.candidates.len());
     }
 
     pub fn build_task(&self, cx: &App) -> Result<ClickTask, String> {
@@ -213,11 +215,8 @@ impl TaskEditor {
         }
         let timezone = input_value(&self.timezone, cx).trim().to_owned();
         let raw_datetime = input_value(&self.local_datetime, cx);
-        let naive = NaiveDateTime::parse_from_str(
-            raw_datetime.trim(),
-            "%Y-%m-%d %H:%M:%S%.3f",
-        )
-        .map_err(|_| "执行时间格式应为 YYYY-MM-DD HH:MM:SS.mmm".to_owned())?;
+        let naive = NaiveDateTime::parse_from_str(raw_datetime.trim(), "%Y-%m-%d %H:%M:%S%.3f")
+            .map_err(|_| "执行时间格式应为 YYYY-MM-DD HH:MM:SS.mmm".to_owned())?;
         let scheduled_at_utc = LocalScheduleInput {
             year: naive.year(),
             month: naive.month(),

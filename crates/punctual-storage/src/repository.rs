@@ -91,9 +91,8 @@ impl SqliteTaskRepository {
 
     pub fn list(&self) -> StorageResult<Vec<ClickTask>> {
         let connection = self.connection()?;
-        let mut statement = connection.prepare(
-            "SELECT * FROM click_tasks ORDER BY scheduled_at_ms ASC, created_at_ms ASC",
-        )?;
+        let mut statement = connection
+            .prepare("SELECT * FROM click_tasks ORDER BY scheduled_at_ms ASC, created_at_ms ASC")?;
         let rows = statement.query_map([], StoredTask::from_row)?;
         rows.map(|row| row.map_err(StorageError::from).and_then(TryInto::try_into))
             .collect()
@@ -109,10 +108,8 @@ impl SqliteTaskRepository {
 
     pub fn delete(&self, id: Uuid) -> StorageResult<bool> {
         let connection = self.connection()?;
-        let affected = connection.execute(
-            "DELETE FROM click_tasks WHERE id = ?1",
-            [id.to_string()],
-        )?;
+        let affected =
+            connection.execute("DELETE FROM click_tasks WHERE id = ?1", [id.to_string()])?;
         Ok(affected > 0)
     }
 

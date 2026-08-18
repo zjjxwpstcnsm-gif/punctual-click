@@ -7,19 +7,22 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{Context as _, Result, bail};
+use anyhow::{bail, Context as _, Result};
 use chrono::Utc;
 use punctual_core::{ClickAttemptGuard, CompletionSignal, TargetCandidate, TargetFingerprint};
 use reqwest::{Client, Method, Response};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
-use tokio::{process::{Child, Command}, time::sleep};
+use serde_json::{json, Value};
+use tokio::{
+    process::{Child, Command},
+    time::sleep,
+};
 use url::Url;
 
 use crate::{
     BrowserInstallation, BrowserKind, CandidateScorer, ClickDispatch, CompletionBaseline,
-    CompletionVerification, CompletionVerifier, DETECT_BUTTONS_SCRIPT, HIGHLIGHT_BUTTON_SCRIPT,
-    PROBE_TARGET_SCRIPT, PageObservation, TargetProbe,
+    CompletionVerification, CompletionVerifier, PageObservation, TargetProbe,
+    DETECT_BUTTONS_SCRIPT, HIGHLIGHT_BUTTON_SCRIPT, PROBE_TARGET_SCRIPT,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -62,10 +65,7 @@ struct ProbePayload<'a> {
 }
 
 impl WebDriverSession {
-    pub async fn launch(
-        installation: &BrowserInstallation,
-        profile_dir: PathBuf,
-    ) -> Result<Self> {
+    pub async fn launch(installation: &BrowserInstallation, profile_dir: PathBuf) -> Result<Self> {
         let driver_path = installation
             .driver
             .as_deref()
@@ -95,17 +95,12 @@ impl WebDriverSession {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        let mut driver = command.spawn().with_context(|| {
-            format!("failed to start WebDriver at {}", driver_path.display())
-        })?;
+        let mut driver = command
+            .spawn()
+            .with_context(|| format!("failed to start WebDriver at {}", driver_path.display()))?;
 
-        if let Err(error) = wait_until_ready(
-            &client,
-            &endpoint,
-            &mut driver,
-            installation.kind,
-        )
-        .await
+        if let Err(error) =
+            wait_until_ready(&client, &endpoint, &mut driver, installation.kind).await
         {
             let _ = driver.start_kill();
             let _ = driver.wait().await;
@@ -128,7 +123,10 @@ impl WebDriverSession {
                     }
                 })
             }
-            _ => bail!("WebDriver backend does not support {}", installation.display_name()),
+            _ => bail!(
+                "WebDriver backend does not support {}",
+                installation.display_name()
+            ),
         };
 
         let session_response = client
@@ -141,9 +139,9 @@ impl WebDriverSession {
             .send()
             .await
             .context("failed to create WebDriver session")?;
-        let payload = parse_response(session_response).await.with_context(|| {
-            webdriver_session_hint(installation.kind)
-        })?;
+        let payload = parse_response(session_response)
+            .await
+            .with_context(|| webdriver_session_hint(installation.kind))?;
         let session_id = payload
             .get("sessionId")
             .and_then(Value::as_str)
@@ -181,13 +179,9 @@ impl WebDriverSession {
         };
         let page = WebDriverPage { handle };
         self.switch_to(&page).await?;
-        self.command(
-            Method::POST,
-            "/url",
-            Some(json!({ "url": url.as_str() })),
-        )
-        .await
-        .with_context(|| format!("failed to open {url}"))?;
+        self.command(Method::POST, "/url", Some(json!({ "url": url.as_str() })))
+            .await
+            .with_context(|| format!("failed to open {url}"))?;
         Ok(page)
     }
 
@@ -412,7 +406,10 @@ impl WebDriverSession {
         let reason = if observation_errors.is_empty() {
             "点击已派发，但原标签页和点击后新建标签页均未出现可确认的结果".into()
         } else {
-            format!("点击已派发，但无法确认结果；{}", observation_errors.join("；"))
+            format!(
+                "点击已派发，但无法确认结果；{}",
+                observation_errors.join("；")
+            )
         };
         Ok(CompletionVerification::Uncertain {
             current_url: dispatch.completion_baseline.url.clone(),
@@ -458,24 +455,19 @@ impl WebDriverSession {
             .await?;
         let browser_observation = serde_json::from_value::<BrowserObservation>(value)
             .context("WebDriver returned an invalid page observation")?;
-        let current_url = self.current_url(page).await.unwrap_or_else(|_| fallback_url.clone());
+        let current_url = self
+            .current_url(page)
+            .await
+            .unwrap_or_else(|_| fallback_url.clone());
         Ok(PageObservation {
             original_url: fallback_url.clone(),
             current_url,
             visible_text: browser_observation.visible_text,
-            present_selectors: browser_observation
-                .present_selectors
-                .into_iter()
-                .collect(),
+            present_selectors: browser_observation.present_selectors.into_iter().collect(),
         })
     }
 
-    async fn execute(
-        &self,
-        page: &WebDriverPage,
-        script: &str,
-        args: Vec<Value>,
-    ) -> Result<Value> {
+    async fn execute(&self, page: &WebDriverPage, script: &str, args: Vec<Value>) -> Result<Value> {
         self.switch_to(page).await?;
         self.command(
             Method::POST,
@@ -486,13 +478,13 @@ impl WebDriverSession {
     }
 
     async fn create_window(&self) -> Result<String> {
-        let before = self.window_handles().await?.into_iter().collect::<BTreeSet<_>>();
+        let before = self
+            .window_handles()
+            .await?
+            .into_iter()
+            .collect::<BTreeSet<_>>();
         match self
-            .command(
-                Method::POST,
-                "/window/new",
-                Some(json!({ "type": "tab" })),
-            )
+            .command(Method::POST, "/window/new", Some(json!({ "type": "tab" })))
             .await
         {
             Ok(value) => {
@@ -554,12 +546,7 @@ impl WebDriverSession {
         serde_json::from_value(value).context("WebDriver returned invalid window handles")
     }
 
-    async fn command(
-        &self,
-        method: Method,
-        suffix: &str,
-        body: Option<Value>,
-    ) -> Result<Value> {
+    async fn command(&self, method: Method, suffix: &str, body: Option<Value>) -> Result<Value> {
         let url = format!("{}/session/{}{}", self.endpoint, self.session_id, suffix);
         let request = self.client.request(method, url);
         let response = match body {
@@ -696,17 +683,17 @@ async fn parse_response(response: Response) -> Result<Value> {
         serde_json::from_str::<Value>(&text)
             .with_context(|| format!("WebDriver returned non-JSON data: {text}"))?
     };
-    let value = payload.get("value").cloned().unwrap_or_else(|| payload.clone());
-    let protocol_error = value
-        .get("error")
-        .and_then(Value::as_str)
-        .map(|error| {
-            let message = value
-                .get("message")
-                .and_then(Value::as_str)
-                .unwrap_or("unknown WebDriver error");
-            format!("{error}: {message}")
-        });
+    let value = payload
+        .get("value")
+        .cloned()
+        .unwrap_or_else(|| payload.clone());
+    let protocol_error = value.get("error").and_then(Value::as_str).map(|error| {
+        let message = value
+            .get("message")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown WebDriver error");
+        format!("{error}: {message}")
+    });
     if !status.is_success() || protocol_error.is_some() {
         bail!(
             "WebDriver command failed ({}): {}",

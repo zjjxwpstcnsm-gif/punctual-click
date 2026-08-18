@@ -25,7 +25,6 @@ pub struct FingerprintLocator {
     minimum_score: i32,
 }
 
-
 #[derive(Debug, Clone, Copy)]
 enum TargetAvailability {
     ClickableNow,
@@ -309,9 +308,8 @@ mod tests {
         let mut disabled = candidate("main-buy", "购买", "主商品 iPhone");
         disabled.enabled = false;
 
-        let result = FingerprintLocator::default()
-            .relocate_for_execution(&fingerprint(), &[disabled]);
+        let result =
+            FingerprintLocator::default().relocate_for_execution(&fingerprint(), &[disabled]);
         assert!(matches!(result, RelocationResult::Unique(_)));
     }
-
 }

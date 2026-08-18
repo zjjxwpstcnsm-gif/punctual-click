@@ -26,14 +26,8 @@ pub struct CompletionBaseline {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompletionVerification {
-    Succeeded {
-        final_url: Url,
-        evidence: String,
-    },
-    Uncertain {
-        current_url: Url,
-        reason: String,
-    },
+    Succeeded { final_url: Url, evidence: String },
+    Uncertain { current_url: Url, reason: String },
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -51,9 +45,7 @@ impl CompletionVerifier {
 
         for signal in signals {
             let evidence = match signal {
-                CompletionSignal::UrlChanged
-                    if observation.current_url != baseline.url =>
-                {
+                CompletionSignal::UrlChanged if observation.current_url != baseline.url => {
                     Some("页面链接已经变化".to_owned())
                 }
                 CompletionSignal::UrlMatches { pattern }

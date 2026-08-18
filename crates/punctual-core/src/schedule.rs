@@ -30,13 +30,9 @@ impl LocalScheduleInput {
             .map_err(|_| ScheduleError::UnknownTimezone(self.timezone.clone()))?;
         let date = NaiveDate::from_ymd_opt(self.year, self.month, self.day)
             .ok_or(ScheduleError::InvalidDate)?;
-        let time = NaiveTime::from_hms_milli_opt(
-            self.hour,
-            self.minute,
-            self.second,
-            self.millisecond,
-        )
-        .ok_or(ScheduleError::InvalidTime)?;
+        let time =
+            NaiveTime::from_hms_milli_opt(self.hour, self.minute, self.second, self.millisecond)
+                .ok_or(ScheduleError::InvalidTime)?;
         let local = NaiveDateTime::new(date, time);
 
         match timezone.from_local_datetime(&local) {
@@ -66,10 +62,7 @@ impl LocalScheduleInput {
     }
 }
 
-pub fn format_in_timezone(
-    value: DateTime<Utc>,
-    timezone: &str,
-) -> Result<String, ScheduleError> {
+pub fn format_in_timezone(value: DateTime<Utc>, timezone: &str) -> Result<String, ScheduleError> {
     let timezone = timezone
         .parse::<Tz>()
         .map_err(|_| ScheduleError::UnknownTimezone(timezone.to_owned()))?;
@@ -78,7 +71,6 @@ pub fn format_in_timezone(
         .format("%Y-%m-%d %H:%M:%S%.3f %Z")
         .to_string())
 }
-
 
 pub fn truncate_to_millis(value: DateTime<Utc>) -> DateTime<Utc> {
     DateTime::<Utc>::from_timestamp_millis(value.timestamp_millis())
@@ -128,6 +120,9 @@ mod tests {
             millisecond: 1_000,
             timezone: "UTC".into(),
         };
-        assert_eq!(input.to_utc().unwrap_err(), ScheduleError::InvalidMillisecond);
+        assert_eq!(
+            input.to_utc().unwrap_err(),
+            ScheduleError::InvalidMillisecond
+        );
     }
 }
